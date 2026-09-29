@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <!-- Full Bleed Background Gradient for Adaptive Icon Masking -->
+    <linearGradient id="learnoraMaskBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4338ca" />
+      <stop offset="45%" stop-color="#3730a3" />
+      <stop offset="100%" stop-color="#1e1b4b" />
+    </linearGradient>
+
+    <radialGradient id="auraGlowMask" cx="50%" cy="45%" r="65%">
+      <stop offset="0%" stop-color="#6366f1" stop-opacity="0.65" />
+      <stop offset="50%" stop-color="#4f46e5" stop-opacity="0.25" />
+      <stop offset="100%" stop-color="#1e1b4b" stop-opacity="0" />
+    </radialGradient>
+
+    <!-- Symbol Linear Gradients -->
+    <linearGradient id="bookLeftGradM" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#e0e7ff" />
+      <stop offset="100%" stop-color="#a5b4fc" />
+    </linearGradient>
+    <linearGradient id="bookRightGradM" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="100%" stop-color="#c7d2fe" />
+    </linearGradient>
+    <linearGradient id="sparkGradM" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fef08a" />
+      <stop offset="50%" stop-color="#fde047" />
+      <stop offset="100%" stop-color="#eab308" />
+    </linearGradient>
+    <linearGradient id="accentGradM" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#818cf8" />
+    </linearGradient>
+
+    <!-- Dropshadows -->
+    <filter id="iconShadowM" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="16" stdDeviation="20" flood-color="#0f172a" flood-opacity="0.6" />
+    </filter>
+    <filter id="glowSparkM" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="0" stdDeviation="12" flood-color="#fef08a" flood-opacity="0.8" />
+    </filter>
+  </defs>
+
+  <!-- Full-bleed background extending to all edges -->
+  <rect width="512" height="512" fill="url(#learnoraMaskBg)" />
+  <rect width="512" height="512" fill="url(#auraGlowMask)" />
+
+  <!-- Safe Zone Scaled (0.8 scale centered at 256,256) -->
+  <g transform="translate(256, 256) scale(0.8) translate(-256, -256)" filter="url(#iconShadowM)">
+    <!-- Open Book Base Platform -->
+    <path d="M256 348 C205 328 145 326 96 342 C92 343 88 340 88 335 V200 C88 196 92 193 96 191 C145 175 205 177 256 198 Z" 
+          fill="url(#bookLeftGradM)" />
+    <path d="M256 348 C307 328 367 326 416 342 C420 343 424 340 424 335 V200 C424 196 420 193 416 191 C367 175 307 177 256 198 Z" 
+          fill="url(#bookRightGradM)" />
+
+    <!-- Center Book Spine Groove -->
+    <path d="M256 196 V352" stroke="#4f46e5" stroke-width="8" stroke-linecap="round" />
+
+    <!-- Neural Intellect Pathways -->
+    <path d="M256 196 C240 148 200 115 152 110" fill="none" stroke="url(#accentGradM)" stroke-width="10" stroke-linecap="round" />
+    <path d="M256 196 C272 148 312 115 360 110" fill="none" stroke="url(#accentGradM)" stroke-width="10" stroke-linecap="round" />
+    
+    <path d="M208 152 C175 160 140 178 120 205" fill="none" stroke="url(#accentGradM)" stroke-width="7" stroke-linecap="round" opacity="0.85" />
+    <path d="M304 152 C337 160 372 178 392 205" fill="none" stroke="url(#accentGradM)" stroke-width="7" stroke-linecap="round" opacity="0.85" />
+
+    <!-- Synapse Nodes / Stars of Knowledge -->
+    <circle cx="152" cy="110" r="14" fill="#38bdf8" />
+    <circle cx="152" cy="110" r="8" fill="#ffffff" />
+
+    <circle cx="360" cy="110" r="14" fill="#38bdf8" />
+    <circle cx="360" cy="110" r="8" fill="#ffffff" />
+
+    <circle cx="120" cy="205" r="10" fill="#a5b4fc" />
+    <circle cx="392" cy="205" r="10" fill="#a5b4fc" />
+
+    <circle cx="256" cy="350" r="12" fill="#c7d2fe" />
+
+    <!-- Central Radiant Spark of Inspiration -->
+    <g transform="translate(256, 126)" filter="url(#glowSparkM)">
+      <path d="M0 -42 Q4 -12 28 -28 Q12 -4 42 0 Q12 4 28 28 Q4 12 0 42 Q-4 12 -28 28 Q-12 4 -42 0 Q-12 -4 -28 -28 Q-4 -12 0 -42 Z" 
+            fill="url(#sparkGradM)" />
+      <circle cx="0" cy="0" r="9" fill="#ffffff" />
+    </g>
+  </g>
+</svg>
