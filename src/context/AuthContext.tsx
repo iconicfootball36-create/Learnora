@@ -161,6 +161,19 @@ function parseJwtPayload(token: string): any {
   }
 }
 
+export const createGoogleTimeoutError = (message = 'Google sign-in took too long to respond. Please check your connection and try again.') => {
+  const err: any = new Error(message);
+  err.code = 'auth/network-request-failed';
+  return err;
+};
+
+export const shouldFallbackToGoogleRedirect = (err?: any): boolean => {
+  if (!err) return false;
+  const code = err.code || '';
+  const message = err.message || '';
+  return code === 'auth/network-request-failed' || code === 'auth/popup-blocked' || /too long to respond|timed out|popup blocked/i.test(message);
+};
+
 // Helper to create resilient User object satisfying Firebase User interface
 export const createLocalUser = (email: string, displayName: string, uid?: string, photoURL?: string): User => {
   const cleanEmail = email.toLowerCase().trim();
@@ -373,10 +386,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const authPromise = signInWithPopup(auth, googleProvider);
       const timeoutPromise = new Promise<never>((_, reject) => {
         setTimeout(() => {
-          const err: any = new Error('Google sign-in took too long to respond. Please check your connection and try again.');
-          err.code = 'auth/network-request-failed';
-          reject(err);
-        }, 30000);
+          reject(createGoogleTimeoutError());
+        }, 45000);
       });
 
       const res: any = await Promise.race([authPromise, timeoutPromise]);
@@ -385,10 +396,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         await loadProfile(res.user);
       }
     } catch (err: any) {
-      if (err?.code === 'auth/popup-blocked') {
-        if (window.self === window.top) {
+      if (shouldFallbackToGoogleRedirect(err) && window.self === window.top) {
+        try {
           await signInWithRedirect(auth, googleProvider);
           return;
+        } catch (redirectErr: any) {
+          console.warn('Google redirect fallback failed:', redirectErr);
         }
       }
       setAuthError(err?.message || 'Google sign-in failed');
