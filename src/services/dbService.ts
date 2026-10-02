@@ -10,7 +10,7 @@ import {
   deleteDoc, 
   updateDoc 
 } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { auth, db } from '../lib/firebase';
 import { 
   UserProfile, 
   StudySet, 
@@ -278,21 +278,34 @@ export class DBService {
   }
 
   static async getTutorMessages(sessionId: string): Promise<TutorMessage[]> {
-    const q = query(collection(db, 'tutorMessages'), where('sessionId', '==', sessionId));
+    const userId = auth.currentUser?.uid;
+    if (!userId) return [];
+
+    const q = query(collection(db, 'tutorMessages'), where('userId', '==', userId));
     const snap = await getDocs(q);
-    const msgs = snap.docs.map(d => ({ id: d.id, ...d.data() } as TutorMessage));
+    const msgs = snap.docs
+      .filter(d => d.data().sessionId === sessionId)
+      .map(d => ({ id: d.id, ...d.data() } as TutorMessage));
     return msgs.sort((a, b) => a.timestamp - b.timestamp);
   }
 
   static async saveTutorMessage(msg: TutorMessage): Promise<void> {
-    const data = this.cleanUndefined(msg);
+    const userId = auth.currentUser?.uid;
+    if (!userId) throw new Error('A Firebase-authenticated user is required to save chat history.');
+
+    const data = this.cleanUndefined({ ...msg, userId });
     await setDoc(doc(db, 'tutorMessages', msg.id), data, { merge: true });
   }
 
   static async clearTutorMessages(sessionId: string): Promise<void> {
-    const q = query(collection(db, 'tutorMessages'), where('sessionId', '==', sessionId));
+    const userId = auth.currentUser?.uid;
+    if (!userId) return;
+
+    const q = query(collection(db, 'tutorMessages'), where('userId', '==', userId));
     const snap = await getDocs(q);
-    const deletePromises = snap.docs.map(d => deleteDoc(d.ref));
+    const deletePromises = snap.docs
+      .filter(d => d.data().sessionId === sessionId)
+      .map(d => deleteDoc(d.ref));
     await Promise.all(deletePromises);
   }
 

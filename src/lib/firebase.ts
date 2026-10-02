@@ -35,9 +35,9 @@ const effectiveConfig = {
 const app: FirebaseApp = getApps().length === 0 ? initializeApp(effectiveConfig) : getApp();
 const auth = getAuth(app);
 
-// Use the specific firestoreDatabaseId provisioned in AI Studio with resilient network settings.
-// experimentalForceLongPolling eliminates WebChannel streaming drops in iframe/preview environments.
-const databaseId = (config as any).firestoreDatabaseId || 'ai-studio-189ac80e-2fad-4aed-9e25-ea8469c78882';
+// Use the default Firestore database unless an actual project database ID is explicitly configured.
+// This avoids repeated warnings when a custom database ID does not exist in the active Firebase project.
+const configuredDatabaseId = (config as any).firestoreDatabaseId || null;
 let db: Firestore;
 try {
   db = initializeFirestore(
@@ -49,10 +49,10 @@ try {
         ? persistentLocalCache({ tabManager: persistentMultipleTabManager() })
         : memoryLocalCache(),
     },
-    databaseId
+    configuredDatabaseId || undefined
   );
 } catch {
-  db = getFirestore(app, databaseId);
+  db = configuredDatabaseId ? getFirestore(app, configuredDatabaseId) : getFirestore(app);
 }
 
 const googleProvider = new GoogleAuthProvider();

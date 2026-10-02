@@ -303,14 +303,14 @@ export const MainDashboard: React.FC = () => {
         <header className={`h-16 bg-white border-b border-slate-200 px-4 sm:px-6 items-center justify-between shrink-0 ${
           activeView === 'tutor' ? 'hidden lg:flex' : 'flex'
         }`}>
-          <div className="flex items-center gap-3 flex-1 max-w-md">
+          <div className="flex items-center gap-3 flex-1 min-w-0 max-w-md">
             <div className="relative w-full">
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search notes, flashcards, or study sets (Ctrl+K)..."
+                placeholder="Search your workspace..."
                 className="w-full pl-9 pr-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-colors"
               />
             </div>
@@ -358,11 +358,11 @@ export const MainDashboard: React.FC = () => {
         </header>
 
         {/* View Routing */}
-        <main className={`flex-1 flex flex-col min-h-0 min-w-0 ${
+        <main className={`flex-1 flex flex-col min-h-0 min-w-0 pb-[calc(4.5rem+env(safe-area-inset-bottom))] lg:pb-0 ${
           activeView === 'tutor' ? 'overflow-hidden' : 'overflow-y-auto'
         }`}>
           {activeView === 'home' && (
-            <div className="p-4 sm:p-8 max-w-6xl mx-auto w-full space-y-8 animate-fade-in pb-24 lg:pb-8">
+            <div className="p-4 sm:p-8 max-w-6xl mx-auto w-full space-y-6 sm:space-y-8 animate-fade-in pb-4 lg:pb-8">
               {/* Welcome banner */}
               <div>
                 <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 font-serif">
@@ -526,7 +526,7 @@ export const MainDashboard: React.FC = () => {
           )}
 
           {activeView === 'library' && (
-            <div className="p-4 sm:p-8 max-w-6xl mx-auto w-full space-y-6 animate-fade-in pb-24 lg:pb-8">
+            <div className="p-4 sm:p-8 max-w-6xl mx-auto w-full space-y-6 animate-fade-in pb-4 lg:pb-8">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <h2 className="text-2xl font-bold text-slate-900 font-serif">Study Sets Library</h2>
@@ -710,7 +710,7 @@ export const MainDashboard: React.FC = () => {
           )}
 
           {activeView === 'cognitive-mind' && (
-            <div className="p-4 sm:p-8 max-w-6xl mx-auto w-full space-y-6 animate-fade-in pb-24 lg:pb-8">
+            <div className="p-4 sm:p-8 max-w-6xl mx-auto w-full space-y-6 animate-fade-in pb-4 lg:pb-8">
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-2xl font-bold text-slate-900 font-serif">Nora's Cognitive Self-Learning Mind</h2>
@@ -733,7 +733,7 @@ export const MainDashboard: React.FC = () => {
         </main>
 
         {/* Mobile Bottom Navigation Bar (Phone-First UX) */}
-        <nav className={`lg:hidden shrink-0 bg-white border-t border-slate-200 z-30 px-1 py-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))] grid ${isAdminEmail(user?.email) ? 'grid-cols-6' : 'grid-cols-5'} items-center w-full`}>
+        <nav className={`fixed inset-x-0 bottom-0 z-50 lg:hidden min-h-16 bg-white/95 backdrop-blur border-t border-slate-200 px-1 pt-2 pb-[max(0.375rem,env(safe-area-inset-bottom))] shadow-[0_-4px_16px_rgba(15,23,42,0.08)] grid ${isAdminEmail(user?.email) ? 'grid-cols-6' : 'grid-cols-5'} items-center w-full`}>
           <button
             onClick={() => setActiveView('home')}
             className={`w-full flex flex-col items-center justify-center gap-1 py-1 transition-colors ${

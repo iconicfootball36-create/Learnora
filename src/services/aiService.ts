@@ -1,4 +1,3 @@
-import { GoogleGenAI } from '@google/genai';
 import { 
   StudyNote, 
   Flashcard, 
@@ -13,15 +12,13 @@ import {
   InteractiveLesson
 } from '../types';
 
-// Valid model per gemini-api skill instructions
-const MODEL_NAME = 'gemini-3.8-flash';
+const DEFAULT_MODEL = 'openai/gpt-oss-20b';
 
-const getApiKey = (): string => {
+const getModelName = (): string => {
   return (
-    (typeof process !== 'undefined' && process.env?.GEMINI_API_KEY) ||
-    (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_GEMINI_API_KEY) ||
-    (typeof window !== 'undefined' && (window as any).__GEMINI_API_KEY__) ||
-    ''
+    (typeof process !== 'undefined' && (process.env?.GROQ_MODEL || process.env?.GROK_MODEL)) ||
+    (typeof import.meta !== 'undefined' && ((import.meta as any).env?.VITE_GROQ_MODEL || (import.meta as any).env?.VITE_GROK_MODEL)) ||
+    DEFAULT_MODEL
   );
 };
 
@@ -42,86 +39,35 @@ export class AIService {
     return cleaned.trim();
   }
 
-  /**
-   * Unified generation dispatcher that tries the backend /api/ai/generate proxy route first
-   * and falls back to client SDK if direct key is present in browser.
-   */
+  /** Routes AI generation through the backend so provider keys stay server-side. */
   private static async callGemini(options: {
     prompt: string;
     model?: string;
     json?: boolean;
     inlineData?: { data: string; mimeType: string };
   }): Promise<{ text: string; data?: any }> {
-    const model = options.model || MODEL_NAME;
+    const model = options.model || getModelName();
     const json = options.json ?? false;
 
-    // 1. Try server-side proxy route first (secure, has process.env.GEMINI_API_KEY)
-    try {
-      const res = await fetch('/api/ai/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt: options.prompt,
-          model,
-          json,
-          inlineData: options.inlineData
-        })
-      });
-
-      if (res.ok) {
-        const body = await res.json();
-        if (body.success) {
-          return { text: body.text, data: body.data };
-        }
-      }
-    } catch (e) {
-      // fallback to client-side SDK if proxy isn't reached
-    }
-
-    // 2. Direct client-side SDK fallback with valid gemini-3.8-flash model
-    const clientKey = getApiKey();
-    const client = new GoogleGenAI({ apiKey: clientKey });
-
-    let contents: any = options.prompt;
-    if (options.inlineData) {
-      contents = [
-        {
-          role: 'user',
-          parts: [
-            {
-              inlineData: {
-                data: options.inlineData.data,
-                mimeType: options.inlineData.mimeType
-              }
-            },
-            { text: options.prompt }
-          ]
-        }
-      ];
-    }
-
-    const config: any = {};
-    if (json) {
-      config.responseMimeType = 'application/json';
-    }
-
-    const response = await client.models.generateContent({
-      model,
-      contents,
-      config
+    const res = await fetch('/api/ai/generate', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        prompt: options.prompt,
+        model,
+        json,
+        inlineData: options.inlineData
+      })
     });
 
-    const text = response.text || '';
-    let data = null;
-    if (json) {
-      try {
-        data = JSON.parse(this.cleanJson(text));
-      } catch (err) {
-        data = null;
-      }
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok || !body.success) {
+      throw new Error(body.error || `Groq proxy request failed (${res.status})`);
     }
 
-    return { text, data };
+    return { text: body.text, data: body.data };
   }
 
   /**
@@ -167,7 +113,7 @@ CRITICAL INSTRUCTIONS:
 
     const res = await this.callGemini({
       prompt,
-      model: MODEL_NAME,
+      model: getModelName(),
       json: true
     });
 
@@ -217,7 +163,7 @@ Return a JSON array of flashcards with this exact schema:
 
     const res = await this.callGemini({
       prompt,
-      model: MODEL_NAME,
+      model: getModelName(),
       json: true
     });
 
@@ -259,7 +205,7 @@ Return a JSON array of questions with this schema:
 
     const res = await this.callGemini({
       prompt,
-      model: MODEL_NAME,
+      model: getModelName(),
       json: true
     });
 
@@ -379,7 +325,7 @@ Format response strictly as JSON:
 
     const res = await this.callGemini({
       prompt,
-      model: MODEL_NAME,
+      model: getModelName(),
       json: true
     });
 
@@ -443,7 +389,7 @@ Return JSON strictly:
 
     const res = await this.callGemini({
       prompt,
-      model: MODEL_NAME,
+      model: getModelName(),
       json: true
     });
 
@@ -503,7 +449,7 @@ Return JSON format:
 
     const res = await this.callGemini({
       prompt,
-      model: MODEL_NAME,
+      model: getModelName(),
       json: true
     });
 
@@ -532,7 +478,7 @@ Evaluate constructively. Return JSON:
 `;
     const res = await this.callGemini({
       prompt,
-      model: MODEL_NAME,
+      model: getModelName(),
       json: true
     });
     return res.data || JSON.parse(this.cleanJson(res.text));
@@ -581,7 +527,7 @@ Evaluate strictly as JSON:
 `;
     const res = await this.callGemini({
       prompt,
-      model: MODEL_NAME,
+      model: getModelName(),
       json: true
     });
     return res.data || JSON.parse(this.cleanJson(res.text));
@@ -683,7 +629,7 @@ Return strictly JSON adhering to this schema:
 `;
     const res = await this.callGemini({
       prompt,
-      model: MODEL_NAME,
+      model: getModelName(),
       json: true
     });
     return res.data || JSON.parse(this.cleanJson(res.text));
@@ -733,7 +679,7 @@ Return JSON:
 `;
     const res = await this.callGemini({
       prompt,
-      model: MODEL_NAME,
+      model: getModelName(),
       json: true
     });
     return res.data || JSON.parse(this.cleanJson(res.text));
@@ -762,7 +708,7 @@ Provide a clear, pedagogical breakdown:
 
     const res = await this.callGemini({
       prompt: fullPrompt,
-      model: MODEL_NAME,
+      model: getModelName(),
       inlineData: {
         data: base64Data,
         mimeType
@@ -901,7 +847,7 @@ Return JSON:
 `;
     const res = await this.callGemini({
       prompt,
-      model: MODEL_NAME,
+      model: getModelName(),
       json: true
     });
     return res.data || JSON.parse(this.cleanJson(res.text));

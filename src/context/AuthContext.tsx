@@ -373,10 +373,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const authPromise = signInWithPopup(auth, googleProvider);
       const timeoutPromise = new Promise<never>((_, reject) => {
         setTimeout(() => {
-          const err: any = new Error('Google Auth domain (distributed-env-czp7b.firebaseapp.com) took too long to respond. Please use Email & Password or One-Click Demo.');
+          const err: any = new Error('Google sign-in took too long to respond. Please check your connection and try again.');
           err.code = 'auth/network-request-failed';
           reject(err);
-        }, 8000);
+        }, 30000);
       });
 
       const res: any = await Promise.race([authPromise, timeoutPromise]);

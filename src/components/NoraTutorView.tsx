@@ -45,6 +45,9 @@ interface NoraTutorViewProps {
   onBack?: () => void;
 }
 
+const filterFailedTutorMessages = (messages: TutorMessage[]): TutorMessage[] =>
+  messages.filter((message) => !message.id.startsWith('err_'));
+
 export const NoraTutorView: React.FC<NoraTutorViewProps> = ({
   userId,
   studentName,
@@ -63,6 +66,7 @@ export const NoraTutorView: React.FC<NoraTutorViewProps> = ({
   const [cognitiveMemory, setCognitiveMemory] = useState<StudentCognitiveMemory | null>(null);
   const [pendingQuizSelections, setPendingQuizSelections] = useState<Record<string, number>>({});
   const [isSpeakingMessageId, setIsSpeakingMessageId] = useState<string | null>(null);
+  const [playbackRate, setPlaybackRate] = useState<number>(() => VoiceService.getPlaybackRate());
   const [currentSessionId, setCurrentSessionId] = useState<string>(() => {
     return studySet ? `sess_${studySet.id}` : `sess_general_${userId || 'guest'}`;
   });
@@ -100,12 +104,12 @@ export const NoraTutorView: React.FC<NoraTutorViewProps> = ({
     try {
       const savedMessages = await DBService.getTutorMessages(sess.id);
       if (savedMessages && savedMessages.length > 0) {
-        setMessages(savedMessages);
+        setMessages(filterFailedTutorMessages(savedMessages));
       } else {
         const local = localStorage.getItem(`learnora_chat_${sess.id}`);
         if (local) {
           try {
-            setMessages(JSON.parse(local));
+            setMessages(filterFailedTutorMessages(JSON.parse(local)));
           } catch (e) {}
         }
       }
@@ -206,7 +210,7 @@ export const NoraTutorView: React.FC<NoraTutorViewProps> = ({
       try {
         const savedMessages = await DBService.getTutorMessages(activeSessId);
         if (savedMessages && savedMessages.length > 0) {
-          setMessages(savedMessages);
+          setMessages(filterFailedTutorMessages(savedMessages));
         } else {
           // Check local storage backup
           const localBackup = localStorage.getItem(`learnora_chat_${activeSessId}`);
@@ -214,7 +218,7 @@ export const NoraTutorView: React.FC<NoraTutorViewProps> = ({
             try {
               const parsed = JSON.parse(localBackup);
               if (Array.isArray(parsed) && parsed.length > 0) {
-                setMessages(parsed);
+                setMessages(filterFailedTutorMessages(parsed));
                 return;
               }
             } catch (err) {}
@@ -264,7 +268,7 @@ export const NoraTutorView: React.FC<NoraTutorViewProps> = ({
           try {
             const parsed = JSON.parse(localBackup);
             if (Array.isArray(parsed) && parsed.length > 0) {
-              setMessages(parsed);
+              setMessages(filterFailedTutorMessages(parsed));
             }
           } catch (e) {}
         }
@@ -389,7 +393,7 @@ export const NoraTutorView: React.FC<NoraTutorViewProps> = ({
         };
 
         setCognitiveMemory(updatedMem);
-        await DBService.saveCognitiveMemory(updatedMem);
+        DBService.saveCognitiveMemory(updatedMem).catch((error) => console.warn('Error saving cognitive memory:', error));
 
         // Record teaching evolution event
         const evolutionLog: TeachingEvolutionLog = {
@@ -401,13 +405,14 @@ export const NoraTutorView: React.FC<NoraTutorViewProps> = ({
           tutorAdjustmentMade: reflection.tutorAdjustmentMade,
           timestamp: Date.now()
         };
-        await DBService.recordTeachingEvolutionLog(evolutionLog);
+        DBService.recordTeachingEvolutionLog(evolutionLog).catch((error) => console.warn('Error saving teaching evolution log:', error));
       }
 
       // Voice narration if active (ElevenLabs with fallback)
       if (speechActive) {
         VoiceService.speak({
-          text: noraResponse.content
+          text: noraResponse.content,
+          rate: playbackRate
         });
       }
 
@@ -517,6 +522,7 @@ export const NoraTutorView: React.FC<NoraTutorViewProps> = ({
     if (msgId) setIsSpeakingMessageId(msgId);
     VoiceService.speak({
       text,
+      rate: playbackRate,
       onStart: () => {
         if (msgId) setIsSpeakingMessageId(msgId);
       },
@@ -524,6 +530,17 @@ export const NoraTutorView: React.FC<NoraTutorViewProps> = ({
         if (msgId) setIsSpeakingMessageId(null);
       }
     });
+  };
+
+  const handlePlaybackRateChange = (nextRate: number) => {
+    setPlaybackRate(nextRate);
+    VoiceService.setPlaybackRate(nextRate);
+    if (isSpeakingMessageId) {
+      const activeMessage = messages.find((message) => message.id === isSpeakingMessageId);
+      if (activeMessage) {
+        speakText(activeMessage.content, activeMessage.id);
+      }
+    }
   };
 
   return (
@@ -611,15 +628,31 @@ export const NoraTutorView: React.FC<NoraTutorViewProps> = ({
             <Sliders className="w-4 h-4 text-violet-600" />
           </button>
 
-          <button
-            onClick={() => setSpeechActive(!speechActive)}
-            className={`p-2 rounded-xl border text-xs flex items-center gap-1.5 transition-colors ${
-              speechActive ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-            }`}
-            title="Read responses aloud"
-          >
-            <Volume2 className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white p-1">
+            <select
+              value={playbackRate}
+              onChange={(event) => handlePlaybackRateChange(Number(event.target.value))}
+              aria-label="Playback speed"
+              className="bg-transparent text-[10px] font-semibold text-slate-700 outline-none px-1.5 py-1 cursor-pointer"
+              title="Playback speed"
+            >
+              <option value={0.75}>0.75x</option>
+              <option value={1}>1x</option>
+              <option value={1.25}>1.25x</option>
+              <option value={1.5}>1.5x</option>
+              <option value={2}>2x</option>
+            </select>
+
+            <button
+              onClick={() => setSpeechActive(!speechActive)}
+              className={`p-2 rounded-lg border text-xs flex items-center gap-1.5 transition-colors ${
+                speechActive ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+              }`}
+              title="Read responses aloud"
+            >
+              <Volume2 className="w-4 h-4" />
+            </button>
+          </div>
 
           <button
             onClick={handleClearChat}
@@ -692,17 +725,33 @@ export const NoraTutorView: React.FC<NoraTutorViewProps> = ({
             >
               <Sliders className="w-3.5 h-3.5 text-violet-600" />
             </button>
-            <button
-              onClick={() => setSpeechActive(!speechActive)}
-              className={`p-1.5 rounded-lg border transition-colors ${
-                speechActive
-                  ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
-                  : 'bg-white border-slate-200 text-slate-600'
-              }`}
-              title="Read responses aloud"
-            >
-              <Volume2 className="w-3.5 h-3.5" />
-            </button>
+            <div className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-1">
+              <select
+                value={playbackRate}
+                onChange={(event) => handlePlaybackRateChange(Number(event.target.value))}
+                aria-label="Playback speed"
+                className="bg-transparent text-[9px] font-semibold text-slate-700 outline-none px-1 py-0.5 cursor-pointer"
+                title="Playback speed"
+              >
+                <option value={0.75}>0.75x</option>
+                <option value={1}>1x</option>
+                <option value={1.25}>1.25x</option>
+                <option value={1.5}>1.5x</option>
+                <option value={2}>2x</option>
+              </select>
+
+              <button
+                onClick={() => setSpeechActive(!speechActive)}
+                className={`p-1.5 rounded-md border transition-colors ${
+                  speechActive
+                    ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
+                    : 'bg-white border-slate-200 text-slate-600'
+                }`}
+                title="Read responses aloud"
+              >
+                <Volume2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
             <button
               onClick={handleClearChat}
               disabled={clearingChat || messages.length <= 1}
@@ -776,22 +825,37 @@ export const NoraTutorView: React.FC<NoraTutorViewProps> = ({
             >
               {/* Header with speaker label */}
               {msg.sender === 'nora' && (
-                <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100 text-xs text-slate-400">
+                <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100 text-xs text-slate-400 gap-2">
                   <span className="font-bold text-indigo-700">Nora ({msg.mode || 'Lecturer'})</span>
-                  <button
-                    onClick={() => speakText(msg.content, msg.id)}
-                    className={`flex items-center gap-1.5 px-2 py-0.5 rounded-lg transition-colors ${
-                      isSpeakingMessageId === msg.id 
-                        ? 'bg-indigo-100 text-indigo-700 font-semibold' 
-                        : 'hover:text-indigo-600'
-                    }`}
-                    title={isSpeakingMessageId === msg.id ? 'Stop speaking' : 'Read aloud'}
-                  >
-                    <Volume2 className={`w-3.5 h-3.5 ${isSpeakingMessageId === msg.id ? 'animate-pulse text-indigo-600' : ''}`} />
-                    {isSpeakingMessageId === msg.id && (
-                      <span className="text-[10px] text-indigo-600">Reading...</span>
-                    )}
-                  </button>
+                  <div className="flex items-center gap-1.5">
+                    <select
+                      value={playbackRate}
+                      onChange={(event) => handlePlaybackRateChange(Number(event.target.value))}
+                      aria-label="Message playback speed"
+                      className="bg-white border border-slate-200 rounded-md px-1 py-0.5 text-[10px] font-semibold text-slate-700 outline-none cursor-pointer"
+                      title="Playback speed"
+                    >
+                      <option value={0.75}>0.75x</option>
+                      <option value={1}>1x</option>
+                      <option value={1.25}>1.25x</option>
+                      <option value={1.5}>1.5x</option>
+                      <option value={2}>2x</option>
+                    </select>
+                    <button
+                      onClick={() => speakText(msg.content, msg.id)}
+                      className={`flex items-center gap-1.5 px-2 py-0.5 rounded-lg transition-colors ${
+                        isSpeakingMessageId === msg.id 
+                          ? 'bg-indigo-100 text-indigo-700 font-semibold' 
+                          : 'hover:text-indigo-600'
+                      }`}
+                      title={isSpeakingMessageId === msg.id ? 'Stop speaking' : 'Read aloud'}
+                    >
+                      <Volume2 className={`w-3.5 h-3.5 ${isSpeakingMessageId === msg.id ? 'animate-pulse text-indigo-600' : ''}`} />
+                      {isSpeakingMessageId === msg.id && (
+                        <span className="text-[10px] text-indigo-600">Reading...</span>
+                      )}
+                    </button>
+                  </div>
                 </div>
               )}
 

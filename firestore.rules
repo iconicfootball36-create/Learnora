@@ -1,149 +1,37 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Helper function to check auth
-    function isAuthenticated() {
-      return request.auth != null;
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
     }
 
-    // Admin authorization strictly restricted to adedayoademola171@gmail.com
-    function isAdmin() {
-      return isAuthenticated() && (
-        request.auth.token.email == 'adedayoademola171@gmail.com'
-      );
-    }
-
-    // User-scoped profiles and private configuration
-    match /users/{userId} {
-      allow read, write: if true;
-    }
-    match /profiles/{userId} {
-      allow read: if true;
-      allow list: if true;
-      allow write: if true;
-    }
-    match /subscriptions/{userId} {
-      allow read, write: if true;
-    }
-    match /usage/{userId} {
-      allow read, write: if true;
-    }
-    match /achievements/{userId} {
-      allow read, write: if true;
-    }
     match /cognitiveMemories/{userId} {
-      allow read, write: if true;
+      allow read, delete: if isOwner(userId);
+      allow create, update: if isOwner(userId) && request.resource.data.userId == userId;
     }
 
-    // Platform announcements / broadcast
-    match /announcements/{announcementId} {
-      allow read: if true;
-      allow write: if true;
-    }
-
-    // Study Sets
-    match /studySets/{setId} {
-      allow read, write: if true;
-    }
-
-    // Structured Notes
-    match /notes/{noteId} {
-      allow read, write: if true;
-    }
-
-    // Flashcards
-    match /flashcards/{cardId} {
-      allow read, write: if true;
-    }
-
-    // Flashcard Progress
-    match /flashcardProgress/{progId} {
-      allow read, write: if true;
-    }
-
-    // Quizzes
-    match /quizzes/{quizId} {
-      allow read, write: if true;
-    }
-
-    // Quiz Attempts
-    match /quizAttempts/{attemptId} {
-      allow read, write: if true;
-    }
-
-    // Practice Tests
-    match /practiceTests/{testId} {
-      allow read, write: if true;
-    }
-
-    // Practice Test Attempts
-    match /testAttempts/{attemptId} {
-      allow read, write: if true;
-    }
-
-    // Study Plans
-    match /studyPlans/{planId} {
-      allow read, write: if true;
-    }
-
-    // Study Sessions
-    match /studySessions/{sessionId} {
-      allow read, write: if true;
-    }
-
-    // Calendar Events
-    match /calendarEvents/{eventId} {
-      allow read, write: if true;
-    }
-
-    // Tutor Sessions
     match /tutorSessions/{sessionId} {
-      allow read, write: if true;
+      allow read, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow update: if request.auth != null
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == request.auth.uid;
     }
 
-    // Tutor Messages
     match /tutorMessages/{messageId} {
-      allow read, write: if true;
+      allow read, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow update: if request.auth != null
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == request.auth.uid;
     }
 
-    // Audio Lessons
-    match /audioLessons/{lessonId} {
-      allow read, write: if true;
-    }
-
-    // Video Lessons
-    match /videoLessons/{videoId} {
-      allow read, write: if true;
-    }
-
-    // Lectures
-    match /lectures/{lectureId} {
-      allow read, write: if true;
-    }
-
-    // Essay Feedback
-    match /essays/{essayId} {
-      allow read, write: if true;
-    }
-
-    // Teaching Styles
-    match /teachingStyles/{styleId} {
-      allow read, write: if true;
-    }
-
-    // Teaching Evolution Logs (Nora's Self-Learning Record)
     match /teachingEvolutionLogs/{logId} {
-      allow read, write: if true;
-    }
-
-    // Notifications
-    match /notifications/{notifId} {
-      allow read, write: if true;
-    }
-
-    // Games
-    match /games/{gameId} {
-      allow read, write: if true;
+      allow read, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow update: if request.auth != null
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == request.auth.uid;
     }
   }
 }

@@ -3,7 +3,6 @@ import express from 'express';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { GoogleGenAI } from '@google/genai';
 
 dotenv.config();
 
@@ -30,47 +29,50 @@ function cleanJson(text: string): string {
   return cleaned.trim();
 }
 
-const getGeminiClient = () => {
-  const apiKey = process.env.GEMINI_API_KEY || '';
-  return new GoogleGenAI({ apiKey });
-};
+const getGroqApiKey = () => process.env.GROQ_API_KEY || process.env.GROK_API_KEY || '';
 
-// API Endpoint: Proxy Gemini API calls securely server-side
+// API Endpoint: Proxy Groq API calls securely server-side
 app.post('/api/ai/generate', async (req, res) => {
   try {
-    const { prompt, model = 'gemini-3.8-flash', json = false, inlineData } = req.body;
-    const client = getGeminiClient();
+    const { prompt, model = process.env.GROQ_MODEL || process.env.GROK_MODEL || 'openai/gpt-oss-20b', json = false, inlineData } = req.body;
+    const apiKey = getGroqApiKey();
 
-    let contents: any = prompt;
-    if (inlineData) {
-      contents = [
-        {
-          role: 'user',
-          parts: [
-            {
-              inlineData: {
-                data: inlineData.data,
-                mimeType: inlineData.mimeType
-              }
-            },
-            { text: prompt }
-          ]
-        }
-      ];
+    if (!apiKey) {
+      return res.status(400).json({
+        success: false,
+        error: 'GROQ_API_KEY is missing. Add it to your environment or .env file.'
+      });
     }
 
-    const config: any = {};
-    if (json) {
-      config.responseMimeType = 'application/json';
-    }
+    const requestPrompt = inlineData
+      ? `${prompt}\n\n[Attached content metadata: ${inlineData.mimeType || 'file'}]`
+      : prompt;
 
-    const response = await client.models.generateContent({
-      model,
-      contents,
-      config
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model,
+        messages: [{ role: 'user', content: requestPrompt }],
+        temperature: 0.7,
+        max_tokens: 4000
+      })
     });
 
-    const text = response.text || '';
+    if (!response.ok) {
+      const errText = await response.text();
+      return res.status(response.status).json({
+        success: false,
+        error: `Groq API error (${response.status}): ${errText}`
+      });
+    }
+
+    const data = await response.json();
+    const text = data?.choices?.[0]?.message?.content || '';
+
     if (json) {
       try {
         const parsed = JSON.parse(cleanJson(text));
@@ -82,7 +84,7 @@ app.post('/api/ai/generate', async (req, res) => {
 
     return res.json({ success: true, text });
   } catch (error: any) {
-    console.error('Gemini proxy error:', error);
+    console.error('Grok proxy error:', error);
     return res.status(500).json({ 
       success: false, 
       error: error?.message || 'Failed to generate AI response' 
@@ -99,17 +101,17 @@ app.post('/api/elevenlabs/tts', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Text is required for TTS' });
     }
 
-    const apiKey = process.env.ELEVENLABS_API_KEY;
-    if (!apiKey) {
-      return res.status(400).json({ 
+    const apiKey = process.env.ELEVENLABS_API_KEY?.trim() || '';
+    if (!apiKey.startsWith('sk_')) {
+      return res.status(503).json({ 
         success: false, 
         configured: false, 
-        error: 'ELEVENLABS_API_KEY is not configured on server. Fallback to Web Speech Synthesis.' 
+        error: 'ElevenLabs needs a valid API key beginning with sk_ in the server .env file. Browser speech remains available as a fallback.'
       });
     }
 
     // Default to Rachel or Sarah if not specified
-    const targetVoiceId = voiceId || process.env.ELEVENLABS_VOICE_ID || '21m00Tcm4TlvDq8ikWAM';
+    const targetVoiceId = voiceId || process.env.ELEVENLABS_VOICE_ID || 'EXAVITQu4vr4xnSDxMaL';
 
     const elevenRes = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${targetVoiceId}`, {
       method: 'POST',
@@ -162,23 +164,58 @@ app.post('/api/elevenlabs/tts', async (req, res) => {
 
 // API Endpoint: Check ElevenLabs status and get curated voice list
 app.get('/api/elevenlabs/voices', async (_req, res) => {
-  const apiKey = process.env.ELEVENLABS_API_KEY;
-  const isConfigured = Boolean(apiKey && apiKey.length > 5);
-
+  const apiKey = process.env.ELEVENLABS_API_KEY?.trim() || '';
+  const isConfigured = apiKey.startsWith('sk_');
   const curatedVoices = [
-    { voiceId: '21m00Tcm4TlvDq8ikWAM', name: 'Rachel', description: 'Calm, clear, empathetic lecturer (Recommended for Nora)', gender: 'female' },
-    { voiceId: 'EXAVITQu4vr4xnSDxMaL', name: 'Sarah', description: 'Warm, dynamic, articulate narrator', gender: 'female' },
-    { voiceId: 'AZnzlk1XvdvUeBnXmlld', name: 'Domi', description: 'Energetic, engaging, enthusiastic', gender: 'female' },
+    { voiceId: 'EXAVITQu4vr4xnSDxMaL', name: 'Sarah', description: 'Warm, dynamic, articulate narrator (Recommended for Nora)', gender: 'female' },
     { voiceId: 'ErXwobaYiN019PkySvjV', name: 'Antoni', description: 'Authoritative, grounded, academic', gender: 'male' },
-    { voiceId: 'pNInz6obpgDQGcFmaJgB', name: 'Adam', description: 'Deep, crisp, narrative guide', gender: 'male' },
-    { voiceId: 'TxGEqnHWrfWFTfGW9XjX', name: 'Josh', description: 'Young, relatable, conversational peer', gender: 'male' }
+    { voiceId: 'pNInz6obpgDQGcFmaJgB', name: 'Adam', description: 'Deep, crisp, narrative guide', gender: 'male' }
   ];
 
-  return res.json({
-    configured: isConfigured,
-    defaultVoiceId: process.env.ELEVENLABS_VOICE_ID || '21m00Tcm4TlvDq8ikWAM',
-    voices: curatedVoices
-  });
+  if (!isConfigured) {
+    return res.json({
+      configured: false,
+      canUseLibraryVoices: false,
+      planRestricted: false,
+      message: 'ElevenLabs needs a valid API key beginning with sk_ in the server .env file. Browser speech remains available as a fallback.',
+      defaultVoiceId: process.env.ELEVENLABS_VOICE_ID || 'EXAVITQu4vr4xnSDxMaL',
+      voices: curatedVoices
+    });
+  }
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 2000);
+    const voiceRes = await fetch('https://api.elevenlabs.io/v1/voices', {
+      method: 'GET',
+      headers: { 'xi-api-key': apiKey },
+      signal: controller.signal
+    });
+    clearTimeout(timeout);
+
+    const canUseLibraryVoices = voiceRes.ok;
+    const planRestricted = voiceRes.status === 402;
+
+    return res.json({
+      configured: true,
+      canUseLibraryVoices,
+      planRestricted,
+      message: planRestricted
+        ? 'Your ElevenLabs account does not allow library voice synthesis on the current plan. Browser speech will be used immediately.'
+        : undefined,
+      defaultVoiceId: process.env.ELEVENLABS_VOICE_ID || 'EXAVITQu4vr4xnSDxMaL',
+      voices: curatedVoices
+    });
+  } catch (error) {
+    return res.json({
+      configured: true,
+      canUseLibraryVoices: false,
+      planRestricted: false,
+      message: 'ElevenLabs verification timed out; browser speech will be used immediately.',
+      defaultVoiceId: process.env.ELEVENLABS_VOICE_ID || 'EXAVITQu4vr4xnSDxMaL',
+      voices: curatedVoices
+    });
+  }
 });
 
 // Mount Vite middleware in development

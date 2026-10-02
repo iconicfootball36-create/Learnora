@@ -20,6 +20,7 @@ export const ElevenLabsVoiceSelector: React.FC<ElevenLabsVoiceSelectorProps> = (
   const [selectedVoice, setSelectedVoice] = useState<string>(VoiceService.getSelectedVoiceId());
   const [previewing, setPreviewing] = useState<string | null>(null);
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
 
   useEffect(() => {
     VoiceService.getVoiceStatus().then((st) => {
@@ -36,11 +37,19 @@ export const ElevenLabsVoiceSelector: React.FC<ElevenLabsVoiceSelectorProps> = (
     }
 
     setPreviewing(voice.voiceId);
-    await VoiceService.speak({
+    setPreviewError(null);
+    const result = await VoiceService.speak({
       text: `Hello! I'm ${voice.name}. I'll be narrating your lessons and Socratic discussions on Learnora.`,
       voiceId: voice.voiceId,
       onEnd: () => setPreviewing(null)
     });
+    if (result.error) {
+      setPreviewError(
+        result.error.includes('paid_plan_required') || result.error.includes('Free users cannot use library voices')
+          ? 'Your ElevenLabs plan does not allow API synthesis with this library voice. Upgrade your plan to enable it; browser speech remains available as fallback.'
+          : result.error
+      );
+    }
   };
 
   const handleSave = () => {
@@ -62,8 +71,12 @@ export const ElevenLabsVoiceSelector: React.FC<ElevenLabsVoiceSelectorProps> = (
         <div>
           <div className="flex items-center gap-2">
             <h4 className="font-bold text-sm text-white font-serif">Nora Voices Studio</h4>
-            <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-bold uppercase tracking-wider border border-emerald-400/30">
-              Active
+            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+              status?.configured
+                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400/30'
+                : 'bg-amber-500/20 text-amber-200 border-amber-400/30'
+            }`}>
+              {status?.configured ? 'Key ready' : 'Setup needed'}
             </span>
           </div>
           <p className="text-xs text-violet-200/90 mt-1 leading-relaxed">
@@ -71,6 +84,18 @@ export const ElevenLabsVoiceSelector: React.FC<ElevenLabsVoiceSelectorProps> = (
           </p>
         </div>
       </div>
+
+      {status && !status.configured && (
+        <div role="status" className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs leading-relaxed">
+          ElevenLabs needs a valid API key beginning with <code className="font-semibold">sk_</code> in the server <code className="font-semibold">.env</code> file. Nora will use browser speech until it is configured.
+        </div>
+      )}
+
+      {previewError && (
+        <div role="alert" className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs leading-relaxed">
+          {previewError}
+        </div>
+      )}
 
       {savedSuccess && (
         <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs flex items-center gap-2 animate-fade-in">
@@ -105,7 +130,7 @@ export const ElevenLabsVoiceSelector: React.FC<ElevenLabsVoiceSelectorProps> = (
                     <span className="px-1.5 py-0.2 rounded text-[9px] font-bold uppercase bg-slate-100 text-slate-600">
                       {voice.gender}
                     </span>
-                    {voice.voiceId === '21m00Tcm4TlvDq8ikWAM' && (
+                    {voice.voiceId === 'EXAVITQu4vr4xnSDxMaL' && (
                       <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-indigo-100 text-indigo-700">
                         Default
                       </span>
