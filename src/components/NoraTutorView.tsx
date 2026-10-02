@@ -544,9 +544,9 @@ export const NoraTutorView: React.FC<NoraTutorViewProps> = ({
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full min-h-0 min-w-0 bg-slate-50 font-sans relative overflow-x-hidden pt-[env(safe-area-inset-top)] sm:pt-0">
+    <div className="flex-1 flex flex-col h-full min-h-0 min-w-0 bg-slate-50 font-sans relative overflow-x-hidden pt-[env(safe-area-inset-top)] lg:pt-0">
       {/* Desktop Nora Header */}
-      <div className="hidden sm:flex bg-white border-b border-slate-200 px-4 sm:px-6 py-3.5 items-center justify-between shrink-0 z-10 shadow-xs">
+      <div className="hidden lg:flex bg-white border-b border-slate-200 px-4 sm:px-6 py-3.5 items-center justify-between shrink-0 z-10 shadow-xs">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           {/* Chat History & Sessions Sidebar Toggle */}
           <button
@@ -666,7 +666,7 @@ export const NoraTutorView: React.FC<NoraTutorViewProps> = ({
       </div>
 
       {/* Mobile Nora Header (Phone-optimized, zero horizontal overflow) */}
-      <div className="sm:hidden flex flex-col bg-white border-b border-slate-200 shrink-0 z-10 shadow-xs">
+      <div className="flex lg:hidden flex-col bg-white border-b border-slate-200 shrink-0 z-10 shadow-xs">
         <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100 gap-2">
           {/* Left: Avatar + Title + Level badge */}
           <div className="flex items-center gap-2 min-w-0 flex-1">
