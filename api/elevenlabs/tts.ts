@@ -39,9 +39,26 @@ export default async function handler(req: any, res: any) {
     });
 
     if (!response.ok) {
+      const errorText = await response.text();
+      let providerError: any;
+      try {
+        providerError = JSON.parse(errorText);
+      } catch {
+        providerError = null;
+      }
+
+      if (providerError?.detail?.code === 'quota_exceeded') {
+        return res.status(200).json({
+          success: false,
+          fallback: true,
+          code: 'quota_exceeded',
+          error: 'ElevenLabs quota is exhausted. Browser speech will be used instead.',
+        });
+      }
+
       return res.status(response.status).json({
         success: false,
-        error: `ElevenLabs API error (${response.status}): ${await response.text()}`,
+        error: `ElevenLabs API error (${response.status}): ${errorText}`,
       });
     }
 

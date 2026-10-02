@@ -544,7 +544,7 @@ export const NoraTutorView: React.FC<NoraTutorViewProps> = ({
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full min-h-0 min-w-0 bg-slate-50 font-sans relative overflow-x-hidden">
+    <div className="flex-1 flex flex-col h-full min-h-0 min-w-0 bg-slate-50 font-sans relative overflow-x-hidden pt-[env(safe-area-inset-top)] sm:pt-0">
       {/* Desktop Nora Header */}
       <div className="hidden sm:flex bg-white border-b border-slate-200 px-4 sm:px-6 py-3.5 items-center justify-between shrink-0 z-10 shadow-xs">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">

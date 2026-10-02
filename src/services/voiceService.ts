@@ -107,6 +107,16 @@ export class VoiceService {
     return true;
   }
 
+  private static markQuotaExceeded(voiceId: string, message: string) {
+    this.cachedStatus = {
+      ...(this.cachedStatus || { configured: true, defaultVoiceId: voiceId, voices: [] }),
+      configured: true,
+      canUseLibraryVoices: false,
+      planRestricted: true,
+      message,
+    };
+  }
+
   private static async fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number) {
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
@@ -230,10 +240,14 @@ export class VoiceService {
         } else {
           const data = await directRes.json().catch(() => ({}));
           providerError = data?.detail?.message || data?.message || `ElevenLabs API error (${directRes.status})`;
+          if (data?.detail?.code === 'quota_exceeded') {
+            providerError = 'ElevenLabs quota is exhausted. Browser speech will be used instead.';
+            this.markQuotaExceeded(targetVoiceId, providerError);
+          }
         }
       }
 
-      if (!audioUri) {
+      if (!audioUri && !providerError?.includes('quota is exhausted')) {
         // Request through secure server proxy
         const res = await this.fetchWithTimeout('/api/elevenlabs/tts', {
           method: 'POST',
@@ -248,6 +262,9 @@ export class VoiceService {
           const data = await res.json();
           if (data.success && data.audioUrl) {
             audioUri = data.audioUrl;
+          } else if (data.code === 'quota_exceeded') {
+            providerError = data.error || 'ElevenLabs quota is exhausted. Browser speech will be used instead.';
+            this.markQuotaExceeded(targetVoiceId, providerError);
           }
         } else {
           const data = await res.json().catch(() => ({}));
@@ -372,6 +389,13 @@ export class VoiceService {
       };
 
       utterance.onerror = (e) => {
+        if (e.error === 'interrupted' || e.error === 'canceled') {
+          if (this.activePlayToken === token && this.isSpeakingFallback) {
+            this.isSpeakingFallback = false;
+            onEnd?.();
+          }
+          return;
+        }
         console.warn('Speech chunk error:', e);
         if (this.activePlayToken === token && this.isSpeakingFallback) {
           playNextChunk(preferredVoice);
